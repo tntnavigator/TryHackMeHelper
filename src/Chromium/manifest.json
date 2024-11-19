@@ -1,0 +1,22 @@
+{
+    "manifest_version": 3,
+    "name": "TryHackMe Helper",
+    "version": "1.0",
+    "description": "Adds answer validation and Target Machine Info duplication for TryHackMe rooms.",
+    "permissions": ["scripting", "storage"],
+    "host_permissions": ["https://tryhackme.com/r/room/*"],
+    "action": {
+      "default_popup": "popup.html"
+    },
+    "background": {
+      "service_worker": "background.js"
+    },
+    "content_scripts": [
+      {
+        "matches": ["https://tryhackme.com/r/room/*"],
+        "js": ["content.js"],
+        "run_at": "document_idle"
+      }
+    ]
+  }
+  
