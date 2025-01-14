@@ -1,0 +1,20 @@
+{
+    "manifest_version": 2,
+    "name": "TryHackMe Helper",
+    "version": "1.0",
+    "description": "Helper extension for TryHackMe",
+    "permissions": [
+        "activeTab",
+        "https://*.tryhackme.com/*"
+    ],
+    "background": {
+        "scripts": ["background.js"],
+        "persistent": false
+    },
+    "content_scripts": [
+        {
+            "matches": ["https://*.tryhackme.com/*"],
+            "js": ["content.js"]
+        }
+    ]
+} 
