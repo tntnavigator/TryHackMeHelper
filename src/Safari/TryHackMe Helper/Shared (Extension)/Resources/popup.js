@@ -1,3 +1,4 @@
+// Use the same code as Chromium's popup.js but with Safari-specific adjustments
 document.addEventListener('DOMContentLoaded', () => {
     // Clear existing content
     document.body.innerHTML = '';
@@ -26,8 +27,13 @@ document.addEventListener('DOMContentLoaded', () => {
     const footer = document.createElement('div');
     footer.className = 'footer';
     const settingsLink = document.createElement('a');
-    settingsLink.href = chrome.runtime.getURL('options.html');
-    settingsLink.target = '_blank';
+    // Safari-specific: Use extension settings URL
+    settingsLink.href = '#';
+    settingsLink.onclick = (e) => {
+        e.preventDefault();
+        // Safari-specific: Open settings
+        browser.runtime.openOptionsPage();
+    };
     settingsLink.textContent = 'Settings';
     footer.appendChild(settingsLink);
     
@@ -48,83 +54,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }, 3000);
     }
 
-    // Function to check running machines
-    async function checkMachines() {
-        try {
-            refreshButton.classList.add('refreshing');
-            
-            const response = await fetch('https://tryhackme.com/api/v2/vms/running', {
-                credentials: 'include' // Add credentials to handle auth
-            });
-            console.log('Checking machines response:', response.status);
-            
-            if (!response.ok) {
-                throw new Error(`Failed to fetch machines: ${response.status}`);
-            }
-            
-            const data = await response.json();
-            console.log('Running machines:', data);
-            
-            content.innerHTML = '';
-            
-            if (data && Array.isArray(data) && data.length > 0) {
-                // Group machines by roomCode and sort by expiry
-                const groupedMachines = data.reduce((acc, machine) => {
-                    if (!acc[machine.roomCode]) {
-                        acc[machine.roomCode] = [];
-                    }
-                    acc[machine.roomCode].push(machine);
-                    return acc;
-                }, {});
-
-                // Sort machines within each group by creation time (newest first)
-                Object.values(groupedMachines).forEach(machines => {
-                    machines.sort((a, b) => new Date(b.created) - new Date(a.created));
-                });
-
-                // Create cards for all machines, sorted by expiry
-                const sortedMachines = data.sort((a, b) => new Date(a.expires) - new Date(b.expires));
-                
-                sortedMachines.forEach(machine => {
-                    content.appendChild(createMachineCard(machine));
-                });
-            } else {
-                const noMachines = document.createElement('div');
-                noMachines.className = 'no-machines';
-                noMachines.textContent = 'No running machines found';
-                content.appendChild(noMachines);
-            }
-        } catch (error) {
-            console.error('Error checking machines:', error);
-            showToast('Error fetching machines', 'error');
-            
-            const errorMessage = document.createElement('div');
-            errorMessage.className = 'no-machines';
-            errorMessage.textContent = 'Failed to load machines. Please try again.';
-            content.innerHTML = '';
-            content.appendChild(errorMessage);
-        } finally {
-            refreshButton.classList.remove('refreshing');
-        }
-    }
-
-    // Update the time remaining display
-    function updateTimeRemaining(timeInfo, expires) {
-        const expiryDate = new Date(expires);
-        const now = new Date();
-        const diff = expiryDate - now;
-        
-        if (diff <= 0) {
-            timeInfo.textContent = 'Expired';
-            return false;
-        }
-        
-        const hours = Math.floor(diff / (1000 * 60 * 60));
-        const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
-        timeInfo.textContent = `${hours}h ${minutes}m remaining`;
-        return true;
-    }
-
     // Function to create machine card
     function createMachineCard(machine) {
         const card = document.createElement('div');
@@ -135,7 +64,7 @@ document.addEventListener('DOMContentLoaded', () => {
         
         const title = document.createElement('div');
         title.className = 'machine-title';
-        title.textContent = machine.name || machine.title; // Support both name formats
+        title.textContent = machine.name || machine.title;
         
         const status = document.createElement('div');
         status.className = 'machine-status';
@@ -153,28 +82,20 @@ document.addEventListener('DOMContentLoaded', () => {
         const info = document.createElement('div');
         info.className = 'machine-info';
         
-        // Add room info if available
         if (machine.roomCode) {
             const roomInfo = document.createElement('div');
             roomInfo.textContent = `Room: ${machine.roomCode}`;
             info.appendChild(roomInfo);
         }
         
-        // Add time remaining with live update
         if (machine.expires) {
             const timeInfo = document.createElement('div');
-            timeInfo.className = 'time-info';
-            updateTimeRemaining(timeInfo, machine.expires);
-            
-            // Update countdown every minute
-            const countdownInterval = setInterval(() => {
-                const isValid = updateTimeRemaining(timeInfo, machine.expires);
-                if (!isValid) {
-                    clearInterval(countdownInterval);
-                    checkMachines(); // Refresh the list when a machine expires
-                }
-            }, 60000);
-            
+            const expiryDate = new Date(machine.expires);
+            const now = new Date();
+            const diff = expiryDate - now;
+            const hours = Math.floor(diff / (1000 * 60 * 60));
+            const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+            timeInfo.textContent = `${hours}h ${minutes}m remaining`;
             info.appendChild(timeInfo);
         }
         
@@ -188,8 +109,12 @@ document.addEventListener('DOMContentLoaded', () => {
             copyButton.innerHTML = '<i class="fas fa-copy"></i>';
             copyButton.title = 'Copy IP';
             copyButton.onclick = () => {
-                navigator.clipboard.writeText(machine.internalIP);
-                showToast('IP copied to clipboard', 'success');
+                // Safari-specific: Use clipboard API
+                navigator.clipboard.writeText(machine.internalIP).then(() => {
+                    showToast('IP copied to clipboard', 'success');
+                }).catch(() => {
+                    showToast('Failed to copy IP', 'error');
+                });
             };
             
             ipContainer.appendChild(copyButton);
@@ -219,7 +144,10 @@ document.addEventListener('DOMContentLoaded', () => {
             option.className = 'connect-option';
             option.textContent = protocol.toUpperCase();
             option.onclick = () => {
-                window.open(`${protocol}://${machine.internalIP}`);
+                // Safari-specific: Open in new tab
+                browser.tabs.create({
+                    url: `${protocol}://${machine.internalIP}`
+                });
             };
             connectMenu.appendChild(option);
         });
@@ -236,7 +164,10 @@ document.addEventListener('DOMContentLoaded', () => {
         const roomButton = document.createElement('button');
         roomButton.innerHTML = '<i class="fas fa-book icon"></i> Room';
         roomButton.onclick = () => {
-            window.open(`https://tryhackme.com/room/${machine.roomCode}`);
+            // Safari-specific: Open in new tab
+            browser.tabs.create({
+                url: `https://tryhackme.com/room/${machine.roomCode}`
+            });
         };
         
         // Terminate button
@@ -283,6 +214,47 @@ document.addEventListener('DOMContentLoaded', () => {
         return card;
     }
 
+    // Function to check running machines
+    async function checkMachines() {
+        try {
+            refreshButton.classList.add('refreshing');
+            
+            const response = await fetch('https://tryhackme.com/api/v2/vms/running');
+            console.log('Checking machines response:', response.status);
+            
+            if (!response.ok) {
+                throw new Error(`Failed to fetch machines: ${response.status}`);
+            }
+            
+            const data = await response.json();
+            console.log('Running machines:', data);
+            
+            content.innerHTML = '';
+            
+            if (data && Array.isArray(data) && data.length > 0) {
+                data.forEach(machine => {
+                    content.appendChild(createMachineCard(machine));
+                });
+            } else {
+                const noMachines = document.createElement('div');
+                noMachines.className = 'no-machines';
+                noMachines.textContent = 'No running machines found';
+                content.appendChild(noMachines);
+            }
+        } catch (error) {
+            console.error('Error checking machines:', error);
+            showToast('Error fetching machines', 'error');
+            
+            const errorMessage = document.createElement('div');
+            errorMessage.className = 'no-machines';
+            errorMessage.textContent = 'Failed to load machines. Please try again.';
+            content.innerHTML = '';
+            content.appendChild(errorMessage);
+        } finally {
+            refreshButton.classList.remove('refreshing');
+        }
+    }
+
     // Add click handler to close dropdowns
     document.addEventListener('click', () => {
         document.querySelectorAll('.connect-menu.show').forEach(menu => {
@@ -308,7 +280,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     // Set up auto-refresh
-    let autoRefreshInterval = setInterval(checkMachines, 30000); // Check every 30 seconds
+    let autoRefreshInterval = setInterval(checkMachines, 30000);
 
     // Clear interval when popup closes
     window.addEventListener('unload', () => {
@@ -317,6 +289,4 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Initial check
     checkMachines();
-});
-
-  
+}); 

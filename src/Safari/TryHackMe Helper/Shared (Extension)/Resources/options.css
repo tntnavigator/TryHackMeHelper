@@ -1,0 +1,140 @@
+:root {
+    --primary: #1de9b6;
+    --primary-hover: #00bfa5;
+    --background: #1c1c1c;
+    --surface: #2d2d2d;
+    --text: #ffffff;
+    --text-secondary: #9e9e9e;
+    --success: #4caf50;
+    --radius-sm: 4px;
+    --radius-md: 6px;
+}
+
+body {
+    margin: 0;
+    padding: 24px;
+    background: var(--background);
+    color: var(--text);
+    font-family: system-ui, -apple-system, sans-serif;
+    -webkit-font-smoothing: antialiased;
+}
+
+.header {
+    margin-bottom: 24px;
+}
+
+.header h1 {
+    font-size: 24px;
+    font-weight: 500;
+    margin: 0 0 8px 0;
+}
+
+.header p {
+    font-size: 14px;
+    color: var(--text-secondary);
+    margin: 0;
+}
+
+.settings-section {
+    max-width: 600px;
+}
+
+.setting-item {
+    display: flex;
+    align-items: center;
+    padding: 16px;
+    background: var(--surface);
+    border-radius: var(--radius-md);
+    margin-bottom: 12px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    transition: all 0.2s ease;
+}
+
+.setting-item:hover {
+    border-color: var(--primary);
+}
+
+.setting-info {
+    flex: 1;
+    margin-right: 16px;
+}
+
+.setting-title {
+    font-size: 14px;
+    font-weight: 500;
+    margin-bottom: 4px;
+}
+
+.setting-description {
+    font-size: 12px;
+    color: var(--text-secondary);
+    line-height: 1.4;
+}
+
+.checkbox-wrapper {
+    display: flex;
+    align-items: center;
+}
+
+.setting-checkbox {
+    appearance: none;
+    -webkit-appearance: none;
+    width: 18px;
+    height: 18px;
+    border: 2px solid var(--text-secondary);
+    border-radius: var(--radius-sm);
+    background: transparent;
+    cursor: pointer;
+    position: relative;
+    transition: all 0.2s ease;
+}
+
+.setting-checkbox:checked {
+    background: var(--primary);
+    border-color: var(--primary);
+}
+
+.setting-checkbox:checked::after {
+    content: "✓";
+    position: absolute;
+    color: var(--background);
+    font-size: 14px;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+}
+
+.setting-checkbox:hover {
+    border-color: var(--primary);
+}
+
+/* Toast */
+.toast {
+    position: fixed;
+    bottom: 16px;
+    left: 50%;
+    transform: translateX(-50%);
+    padding: 8px 16px;
+    border-radius: var(--radius-sm);
+    background: var(--surface);
+    color: var(--text);
+    font-size: 12px;
+    pointer-events: none;
+    animation: toast-in 0.2s ease;
+    z-index: 1000;
+}
+
+.toast.success {
+    background: var(--success);
+}
+
+@keyframes toast-in {
+    from {
+        opacity: 0;
+        transform: translate(-50%, 20px);
+    }
+    to {
+        opacity: 1;
+        transform: translate(-50%, 0);
+    }
+} 

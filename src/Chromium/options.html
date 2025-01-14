@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>TryHackMe Helper Settings</title>
+    <style>
+        body {
+            width: 100%;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 32px;
+            background: var(--background);
+            color: var(--text);
+            font-family: system-ui, -apple-system, sans-serif;
+        }
+
+        .header {
+            margin-bottom: 32px;
+        }
+
+        .header h1 {
+            font-size: 24px;
+            margin: 0 0 8px 0;
+        }
+
+        .header p {
+            color: var(--text-secondary);
+            margin: 0;
+        }
+
+        .settings-group {
+            background: var(--surface);
+            border-radius: 8px;
+            padding: 24px;
+            margin-bottom: 24px;
+        }
+
+        .settings-group h2 {
+            font-size: 18px;
+            margin: 0 0 16px 0;
+        }
+    </style>
+    <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+    <div class="header">
+        <h1>TryHackMe Helper Settings</h1>
+        <p>Configure your extension preferences. Settings are automatically saved.</p>
+    </div>
+
+    <div class="settings-group">
+        <h2>Machine Management</h2>
+        <div class="settings-section">
+            <!-- Reuse our existing settings items -->
+        </div>
+    </div>
+
+    <script src="options.js"></script>
+</body>
+</html> 
