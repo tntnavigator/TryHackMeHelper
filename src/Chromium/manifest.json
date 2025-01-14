@@ -2,21 +2,37 @@
     "manifest_version": 3,
     "name": "TryHackMe Helper",
     "version": "1.0",
-    "description": "Adds answer validation and Target Machine Info duplication for TryHackMe rooms.",
-    "permissions": ["scripting", "storage"],
-    "host_permissions": ["https://tryhackme.com/r/room/*"],
+    "description": "Enhanced TryHackMe helper with machine management and improved functionality",
+    "permissions": [
+        "storage",
+        "alarms",
+        "notifications"
+    ],
+    "host_permissions": [
+        "https://*.tryhackme.com/*"
+    ],
     "action": {
-      "default_popup": "popup.html"
+        "default_popup": "popup.html",
+        "default_icon": {
+            "16": "icons/icon16.png",
+            "48": "icons/icon48.png",
+            "128": "icons/icon128.png"
+        }
     },
     "background": {
-      "service_worker": "background.js"
+        "service_worker": "background.js",
+        "type": "module"
     },
     "content_scripts": [
-      {
-        "matches": ["https://tryhackme.com/r/room/*"],
-        "js": ["content.js"],
-        "run_at": "document_idle"
-      }
-    ]
-  }
+        {
+            "matches": ["https://*.tryhackme.com/*"],
+            "js": ["content.js"]
+        }
+    ],
+    "icons": {
+        "16": "icons/icon16.png",
+        "48": "icons/icon48.png",
+        "128": "icons/icon128.png"
+    }
+}
   

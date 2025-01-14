@@ -5,7 +5,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         try {
             // Request machines from background script first
             return new Promise((resolve) => {
-                chrome.runtime.sendMessage({ action: 'getMachines' }, response => {
+                browser.runtime.sendMessage({ action: 'getMachines' }, response => {
                     resolve(response.machines);
                 });
             });
@@ -28,7 +28,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             if (!response.ok) throw new Error('Failed to terminate machine');
             
             // Notify background script of state change
-            chrome.runtime.sendMessage({ action: 'machineStateChanged' });
+            browser.runtime.sendMessage({ action: 'machineStateChanged' });
             await updateMachineList(); // Refresh the list after termination
         } catch (error) {
             console.error('Error terminating machine:', error);
@@ -76,9 +76,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         
         const connectBtn = document.createElement('button');
         connectBtn.textContent = 'Connect';
-        connectBtn.onclick = () => chrome.tabs.create({
-            url: `https://tryhackme.com/r/room/${machine.roomId}`
-        });
+        connectBtn.onclick = () => window.open(`https://tryhackme.com/r/room/${machine.roomId}`);
         
         actions.appendChild(connectBtn);
         actions.appendChild(terminateBtn);
@@ -111,6 +109,4 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // Initial update when popup opens
     await updateMachineList();
-});
-
-  
+}); 
