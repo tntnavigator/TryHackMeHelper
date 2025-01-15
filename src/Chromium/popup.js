@@ -1,98 +1,165 @@
-document.addEventListener('DOMContentLoaded', () => {
+import { VERSION, API, SETTINGS } from './constants.js';
+import { makeRequest } from './utils/api.js';
+
+/**
+ * TryHackMe Helper Popup
+ * Manages the display and interaction with running machines and user settings.
+ * 
+ * Features:
+ * - Displays running machines with status
+ * - Allows machine termination
+ * - Provides quick access to machine IP and room
+ * - Manages user settings
+ */
+document.addEventListener('DOMContentLoaded', async () => {
     // Clear existing content
     document.body.innerHTML = '';
 
-    // Create header
+    // Create header with logo and refresh button
     const header = document.createElement('div');
     header.className = 'header';
+    
+    const logo = document.createElement('img');
+    logo.src = 'icons/icon48.png';
+    logo.alt = 'TryHackMe Helper';
+    logo.style.width = '32px';
+    logo.style.height = '32px';
     
     const title = document.createElement('div');
     title.className = 'title';
     title.textContent = 'Running Machines';
     
+    // Create refresh button with icon
     const refreshButton = document.createElement('button');
     refreshButton.className = 'refresh-button';
     refreshButton.innerHTML = '<i class="fas fa-sync-alt refresh-icon"></i>';
     refreshButton.title = 'Refresh machines';
     
+    header.appendChild(logo);
     header.appendChild(title);
     header.appendChild(refreshButton);
+
+    // Create features section
+    const features = document.createElement('div');
+    features.className = 'settings';
     
-    // Create content area
-    const content = document.createElement('div');
-    content.className = 'content';
+    const featuresTitle = document.createElement('div');
+    featuresTitle.className = 'settings-title';
+    featuresTitle.textContent = 'Features';
     
-    // Create footer
-    const footer = document.createElement('div');
-    footer.className = 'footer';
-    const settingsLink = document.createElement('a');
-    settingsLink.href = chrome.runtime.getURL('options.html');
-    settingsLink.target = '_blank';
-    settingsLink.textContent = 'Settings';
-    footer.appendChild(settingsLink);
+    const toggleGroup = document.createElement('div');
+    toggleGroup.className = 'toggle-group';
+
+    // Define features with their storage keys
+    const featureToggles = [
+        {
+            id: 'toggle-validation',
+            label: 'Answer Validation',
+            key: SETTINGS.VALIDATION_ENABLED
+        },
+        {
+            id: 'toggle-machine-info',
+            label: 'Machine Info at Bottom',
+            key: SETTINGS.MACHINE_INFO_ENABLED
+        },
+        {
+            id: 'toggle-copy-command',
+            label: 'Copy Command Buttons',
+            key: SETTINGS.COPY_COMMAND_ENABLED
+        }
+    ];
+
+    // Load saved settings
+    const savedSettings = await chrome.storage.local.get(
+        featureToggles.map(toggle => toggle.key)
+    );
+
+    // Create toggle switches
+    featureToggles.forEach(toggle => {
+        const item = document.createElement('div');
+        item.className = 'toggle-item';
+        
+        const input = document.createElement('input');
+        input.type = 'checkbox';
+        input.id = toggle.id;
+        input.checked = savedSettings[toggle.key] ?? true; // Default to enabled
+        
+        input.addEventListener('change', (e) => {
+            chrome.storage.local.set({ [toggle.key]: e.target.checked });
+        });
+        
+        const label = document.createElement('label');
+        label.htmlFor = toggle.id;
+        label.textContent = toggle.label;
+        
+        item.appendChild(input);
+        item.appendChild(label);
+        toggleGroup.appendChild(item);
+    });
+
+    features.appendChild(featuresTitle);
+    features.appendChild(toggleGroup);
+    
+    // Create machine list container
+    const machineList = document.createElement('div');
+    machineList.id = 'machineList';
+    machineList.className = 'machine-list';
+    machineList.innerHTML = '<div class="loading">Loading machines...</div>';
     
     // Add elements to body
     document.body.appendChild(header);
-    document.body.appendChild(content);
-    document.body.appendChild(footer);
+    document.body.appendChild(features);
+    document.body.appendChild(machineList);
 
-    // Function to show toast message
+    /**
+     * Creates a toast notification
+     * @param {string} message - Message to display
+     * @param {string} type - Optional type for styling ('success' or 'error')
+     */
     function showToast(message, type = '') {
         const toast = document.createElement('div');
         toast.className = `toast ${type}`;
         toast.textContent = message;
         document.body.appendChild(toast);
-        
-        setTimeout(() => {
-            toast.remove();
-        }, 3000);
+        setTimeout(() => toast.remove(), 3000);
     }
 
-    // Function to check running machines
+    /**
+     * Fetches and displays running machines from TryHackMe API
+     * Handles loading, error, and empty states
+     * Updates the machine list UI with current machine status
+     */
     async function checkMachines() {
         try {
             refreshButton.classList.add('refreshing');
             
-            const response = await fetch('https://tryhackme.com/api/v2/vms/running', {
-                credentials: 'include' // Add credentials to handle auth
+            // Fetch running machines
+            const response = await fetch(API.RUNNING_MACHINES, {
+                credentials: 'include',
+                headers: {
+                    'Accept': 'application/json',
+                    'Cache-Control': 'no-cache'
+                }
             });
-            console.log('Checking machines response:', response.status);
             
             if (!response.ok) {
                 throw new Error(`Failed to fetch machines: ${response.status}`);
             }
             
+            // Parse and display machines
             const data = await response.json();
-            console.log('Running machines:', data);
+            const machines = data.data || [];
+            machineList.innerHTML = '';
             
-            content.innerHTML = '';
-            
-            if (data && Array.isArray(data) && data.length > 0) {
-                // Group machines by roomCode and sort by expiry
-                const groupedMachines = data.reduce((acc, machine) => {
-                    if (!acc[machine.roomCode]) {
-                        acc[machine.roomCode] = [];
-                    }
-                    acc[machine.roomCode].push(machine);
-                    return acc;
-                }, {});
-
-                // Sort machines within each group by creation time (newest first)
-                Object.values(groupedMachines).forEach(machines => {
-                    machines.sort((a, b) => new Date(b.created) - new Date(a.created));
-                });
-
-                // Create cards for all machines, sorted by expiry
-                const sortedMachines = data.sort((a, b) => new Date(a.expires) - new Date(b.expires));
-                
-                sortedMachines.forEach(machine => {
-                    content.appendChild(createMachineCard(machine));
+            if (machines.length > 0) {
+                machines.forEach(machine => {
+                    machineList.appendChild(createMachineCard(machine));
                 });
             } else {
                 const noMachines = document.createElement('div');
                 noMachines.className = 'no-machines';
                 noMachines.textContent = 'No running machines found';
-                content.appendChild(noMachines);
+                machineList.appendChild(noMachines);
             }
         } catch (error) {
             console.error('Error checking machines:', error);
@@ -101,81 +168,46 @@ document.addEventListener('DOMContentLoaded', () => {
             const errorMessage = document.createElement('div');
             errorMessage.className = 'no-machines';
             errorMessage.textContent = 'Failed to load machines. Please try again.';
-            content.innerHTML = '';
-            content.appendChild(errorMessage);
+            machineList.innerHTML = '';
+            machineList.appendChild(errorMessage);
         } finally {
             refreshButton.classList.remove('refreshing');
         }
     }
 
-    // Update the time remaining display
-    function updateTimeRemaining(timeInfo, expires) {
-        const expiryDate = new Date(expires);
-        const now = new Date();
-        const diff = expiryDate - now;
-        
-        if (diff <= 0) {
-            timeInfo.textContent = 'Expired';
-            return false;
-        }
-        
-        const hours = Math.floor(diff / (1000 * 60 * 60));
-        const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
-        timeInfo.textContent = `${hours}h ${minutes}m remaining`;
-        return true;
-    }
-
-    // Function to create machine card
+    /**
+     * Creates a machine card element
+     * @param {Object} machine - Machine data from API
+     * @param {string} machine.id - Machine ID
+     * @param {string} machine.name - Machine name
+     * @param {string} machine.roomCode - Room code
+     * @param {string} machine.internalIP - Machine IP when running
+     * @returns {HTMLElement} The machine card element
+     */
     function createMachineCard(machine) {
         const card = document.createElement('div');
         card.className = 'machine-card';
         
+        // Create card header with title and status
         const header = document.createElement('div');
         header.className = 'machine-header';
         
         const title = document.createElement('div');
         title.className = 'machine-title';
-        title.textContent = machine.name || machine.title; // Support both name formats
+        title.textContent = machine.name || machine.title;
         
         const status = document.createElement('div');
-        status.className = 'machine-status';
-        if (!machine.internalIP && machine.waitTime) {
-            status.classList.add('initializing');
-            status.title = 'Initializing';
-        } else if (machine.internalIP) {
-            status.classList.add('running');
-            status.title = 'Running';
-        }
+        status.className = `machine-status ${machine.internalIP ? 'running' : 'initializing'}`;
         
         header.appendChild(title);
         header.appendChild(status);
         
+        // Create machine info section
         const info = document.createElement('div');
         info.className = 'machine-info';
         
-        // Add room info if available
         if (machine.roomCode) {
-            const roomInfo = document.createElement('div');
-            roomInfo.textContent = `Room: ${machine.roomCode}`;
-            info.appendChild(roomInfo);
-        }
-        
-        // Add time remaining with live update
-        if (machine.expires) {
-            const timeInfo = document.createElement('div');
-            timeInfo.className = 'time-info';
-            updateTimeRemaining(timeInfo, machine.expires);
-            
-            // Update countdown every minute
-            const countdownInterval = setInterval(() => {
-                const isValid = updateTimeRemaining(timeInfo, machine.expires);
-                if (!isValid) {
-                    clearInterval(countdownInterval);
-                    checkMachines(); // Refresh the list when a machine expires
-                }
-            }, 60000);
-            
-            info.appendChild(timeInfo);
+            info.appendChild(createInfoLine(`Room: ${machine.roomCode}`));
         }
         
         if (machine.internalIP) {
@@ -186,7 +218,6 @@ document.addEventListener('DOMContentLoaded', () => {
             const copyButton = document.createElement('button');
             copyButton.className = 'copy-button';
             copyButton.innerHTML = '<i class="fas fa-copy"></i>';
-            copyButton.title = 'Copy IP';
             copyButton.onclick = () => {
                 navigator.clipboard.writeText(machine.internalIP);
                 showToast('IP copied to clipboard', 'success');
@@ -194,93 +225,105 @@ document.addEventListener('DOMContentLoaded', () => {
             
             ipContainer.appendChild(copyButton);
             info.appendChild(ipContainer);
-        } else if (machine.waitTime) {
-            const waitInfo = document.createElement('div');
-            waitInfo.textContent = 'Machine is initializing...';
-            info.appendChild(waitInfo);
         }
         
+        // Create machine actions
         const actions = document.createElement('div');
         actions.className = 'machine-actions';
         
-        // Connect button with dropdown
-        const connectWrapper = document.createElement('div');
-        connectWrapper.className = 'connect-wrapper';
-        
-        const connectButton = document.createElement('button');
-        connectButton.innerHTML = '<i class="fas fa-link icon"></i> Connect';
-        connectButton.disabled = !machine.internalIP;
-        
-        const connectMenu = document.createElement('div');
-        connectMenu.className = 'connect-menu';
-        
-        ['https', 'http'].forEach(protocol => {
-            const option = document.createElement('button');
-            option.className = 'connect-option';
-            option.textContent = protocol.toUpperCase();
-            option.onclick = () => {
-                window.open(`${protocol}://${machine.internalIP}`);
+        // Add connect button with dropdown for running machines
+        if (machine.internalIP) {
+            const connectWrapper = document.createElement('div');
+            connectWrapper.className = 'connect-wrapper';
+            
+            const connectButton = document.createElement('button');
+            connectButton.innerHTML = '<i class="fas fa-link"></i> Connect';
+            
+            const connectMenu = document.createElement('div');
+            connectMenu.className = 'connect-menu';
+            
+            // Add HTTPS and HTTP connection options
+            ['HTTPS', 'HTTP'].forEach(protocol => {
+                const option = document.createElement('button');
+                option.className = 'connect-option';
+                option.textContent = protocol;
+                option.onclick = () => {
+                    window.open(`${protocol.toLowerCase()}://${machine.internalIP}`);
+                };
+                connectMenu.appendChild(option);
+            });
+            
+            connectButton.onclick = (e) => {
+                e.stopPropagation();
+                connectMenu.classList.toggle('show');
             };
-            connectMenu.appendChild(option);
-        });
+            
+            connectWrapper.appendChild(connectButton);
+            connectWrapper.appendChild(connectMenu);
+            actions.appendChild(connectWrapper);
+        }
         
-        connectButton.onclick = (e) => {
-            e.stopPropagation();
-            connectMenu.classList.toggle('show');
-        };
+        // Add room button if room code is available
+        if (machine.roomCode) {
+            const roomButton = document.createElement('button');
+            roomButton.innerHTML = '<i class="fas fa-book"></i> Room';
+            roomButton.onclick = () => {
+                window.open(`https://tryhackme.com/room/${machine.roomCode}`);
+            };
+            actions.appendChild(roomButton);
+        }
         
-        connectWrapper.appendChild(connectButton);
-        connectWrapper.appendChild(connectMenu);
-        
-        // Room button
-        const roomButton = document.createElement('button');
-        roomButton.innerHTML = '<i class="fas fa-book icon"></i> Room';
-        roomButton.onclick = () => {
-            window.open(`https://tryhackme.com/room/${machine.roomCode}`);
-        };
-        
-        // Terminate button
+        // Add terminate button
         const terminateButton = document.createElement('button');
         terminateButton.className = 'terminate';
-        terminateButton.innerHTML = '<i class="fas fa-power-off icon"></i> Terminate';
+        terminateButton.innerHTML = '<i class="fas fa-power-off"></i> Terminate';
         terminateButton.onclick = async () => {
             try {
-                terminateButton.disabled = true;
-                const response = await fetch(`https://tryhackme.com/api/v2/vms/terminate`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({ machineId: machine.id })
+                console.group('Terminate Machine Request');
+                console.log('Starting terminate for machine:', {
+                    id: machine.id,
+                    name: machine.name,
+                    roomCode: machine.roomCode
                 });
+
+                terminateButton.disabled = true;
+
+                // Make the terminate request using our API utility
+                const result = await makeRequest(API.TERMINATE_MACHINE, {
+                    method: 'POST',
+                    body: JSON.stringify({ id: machine.id })
+                });
+
+                console.log('Terminate response:', result);
                 
-                console.log('Terminate response:', response.status, await response.text());
-                
-                if (response.ok) {
-                    showToast('Machine terminated successfully', 'success');
-                    await checkMachines();
-                } else {
-                    showToast('Failed to terminate machine', 'error');
-                }
+                showToast('Machine terminated successfully', 'success');
+                await checkMachines();
             } catch (error) {
-                console.error('Terminate error:', error);
-                showToast('Error terminating machine', 'error');
+                console.error('Terminate error:', {
+                    name: error.name,
+                    message: error.message,
+                    stack: error.stack
+                });
+                showToast(error.message || 'Error terminating machine', 'error');
             } finally {
+                console.groupEnd();
                 terminateButton.disabled = false;
             }
         };
-        
-        actions.appendChild(connectWrapper);
-        if (machine.roomCode) {
-            actions.appendChild(roomButton);
-        }
         actions.appendChild(terminateButton);
         
+        // Assemble the card
         card.appendChild(header);
         card.appendChild(info);
         card.appendChild(actions);
         
         return card;
+    }
+
+    function createInfoLine(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div;
     }
 
     // Add click handler to close dropdowns
@@ -297,26 +340,16 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    // Add keyboard shortcut for refresh
-    document.addEventListener('keydown', (e) => {
-        if ((e.ctrlKey || e.metaKey) && e.key === 'r') {
-            e.preventDefault();
-            if (!refreshButton.classList.contains('refreshing')) {
-                checkMachines();
-            }
-        }
-    });
+    // Initial check for machines
+    checkMachines();
 
     // Set up auto-refresh
-    let autoRefreshInterval = setInterval(checkMachines, 30000); // Check every 30 seconds
+    const autoRefreshInterval = setInterval(checkMachines, 30000);
 
-    // Clear interval when popup closes
+    // Clean up interval when popup closes
     window.addEventListener('unload', () => {
         clearInterval(autoRefreshInterval);
     });
-
-    // Initial check
-    checkMachines();
 });
 
   

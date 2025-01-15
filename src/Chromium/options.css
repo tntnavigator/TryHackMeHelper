@@ -17,31 +17,50 @@ body {
     color: var(--text);
     font-family: system-ui, -apple-system, sans-serif;
     -webkit-font-smoothing: antialiased;
+    min-width: 400px;
 }
 
 .header {
-    margin-bottom: 24px;
+    margin-bottom: 32px;
+    padding-bottom: 16px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 .header h1 {
     font-size: 24px;
     font-weight: 500;
     margin: 0 0 8px 0;
+    color: var(--primary);
 }
 
 .header p {
     font-size: 14px;
     color: var(--text-secondary);
     margin: 0;
+    line-height: 1.4;
 }
 
 .settings-section {
     max-width: 600px;
+    margin: 0 auto;
+}
+
+.settings-category {
+    margin-bottom: 32px;
+}
+
+.category-title {
+    font-size: 18px;
+    font-weight: 500;
+    color: var(--text);
+    margin: 0 0 16px 0;
+    padding-bottom: 8px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 .setting-item {
     display: flex;
-    align-items: center;
+    align-items: flex-start;
     padding: 16px;
     background: var(--surface);
     border-radius: var(--radius-md);
@@ -52,17 +71,19 @@ body {
 
 .setting-item:hover {
     border-color: var(--primary);
+    background: rgba(29, 233, 182, 0.1);
 }
 
 .setting-info {
     flex: 1;
-    margin-right: 16px;
+    margin-right: 24px;
 }
 
 .setting-title {
     font-size: 14px;
     font-weight: 500;
     margin-bottom: 4px;
+    color: var(--text);
 }
 
 .setting-description {
@@ -71,20 +92,19 @@ body {
     line-height: 1.4;
 }
 
-.checkbox-wrapper {
-    display: flex;
-    align-items: center;
+/* Modern Toggle Switch */
+.toggle-wrapper {
+    padding-top: 2px;
 }
 
-/* Modern Toggle Switch */
 .setting-checkbox {
     appearance: none;
     -webkit-appearance: none;
     width: 44px;
     height: 24px;
     border-radius: 12px;
-    background: var(--surface);
-    border: 2px solid var(--text-secondary);
+    background: rgba(255, 255, 255, 0.1);
+    border: none;
     cursor: pointer;
     position: relative;
     transition: all 0.3s ease;
@@ -93,31 +113,41 @@ body {
 .setting-checkbox::before {
     content: "";
     position: absolute;
-    width: 18px;
-    height: 18px;
+    width: 20px;
+    height: 20px;
     border-radius: 50%;
-    top: 1px;
-    left: 1px;
-    background: var(--text-secondary);
-    transition: all 0.3s ease;
+    top: 2px;
+    left: 2px;
+    background: var(--text);
+    transition: all 0.3s cubic-bezier(0.4, 0.0, 0.2, 1);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
 }
 
 .setting-checkbox:checked {
     background: var(--primary);
-    border-color: var(--primary);
 }
 
 .setting-checkbox:checked::before {
-    background: var(--background);
+    background: var(--text);
     transform: translateX(20px);
 }
 
 .setting-checkbox:hover {
-    border-color: var(--primary);
+    background: rgba(255, 255, 255, 0.15);
 }
 
-.setting-checkbox:hover::before {
-    background: var(--primary);
+.setting-checkbox:checked:hover {
+    background: var(--primary-hover);
+}
+
+/* Version Info */
+.version-info {
+    font-size: 12px;
+    color: var(--text-secondary);
+    text-align: center;
+    margin-top: 32px;
+    padding-top: 16px;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 /* Toast */
@@ -128,16 +158,13 @@ body {
     transform: translateX(-50%);
     padding: 8px 16px;
     border-radius: var(--radius-sm);
-    background: var(--surface);
+    background: var(--success);
     color: var(--text);
     font-size: 12px;
     pointer-events: none;
     animation: toast-in 0.2s ease;
     z-index: 1000;
-}
-
-.toast.success {
-    background: var(--success);
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
 }
 
 @keyframes toast-in {

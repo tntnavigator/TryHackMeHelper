@@ -1,50 +1,93 @@
+import { VERSION, SETTINGS } from './constants.js';
+
 document.addEventListener('DOMContentLoaded', () => {
     const settingsSection = document.querySelector('.settings-section');
 
-    // Create settings
-    const settings = [
+    // Create settings categories
+    const categories = [
         {
-            id: 'toggle-validation',
-            title: 'Answer Format Validation',
-            description: 'Checks if your answer matches the required format (e.g., flag{...}, ***) mentioned in the question hints before submitting',
-            key: 'validationEnabled'
-        },
-        {
-            id: 'toggle-copy-command',
-            title: 'Command Copy Buttons',
-            description: 'Adds copy buttons to command blocks in room write-ups, making it easier to copy and run commands',
-            key: 'copyCommandEnabled'
+            title: 'Room Features',
+            settings: [
+                {
+                    id: 'toggle-validation',
+                    title: 'Answer Format Helper',
+                    description: 'Shows a warning if your answer doesn\'t match the required format (e.g., flag{...}, ***) before submitting',
+                    key: SETTINGS.VALIDATION_ENABLED
+                },
+                {
+                    id: 'toggle-copy-command',
+                    title: 'Quick Command Copy',
+                    description: 'Adds copy buttons next to command blocks in room write-ups for easy copying',
+                    key: SETTINGS.COPY_COMMAND_ENABLED
+                }
+            ]
         }
     ];
 
-    // Create setting elements
-    settings.forEach(setting => {
-        const item = createSettingItem(setting);
-        settingsSection.appendChild(item);
+    // Create header
+    const header = document.createElement('div');
+    header.className = 'header';
+    
+    const title = document.createElement('h1');
+    title.textContent = 'TryHackMe Helper Settings';
+    
+    const subtitle = document.createElement('p');
+    subtitle.textContent = 'Configure your extension preferences. Settings are automatically saved.';
+    
+    header.appendChild(title);
+    header.appendChild(subtitle);
+    settingsSection.appendChild(header);
+
+    // Create category elements
+    categories.forEach(category => {
+        const categorySection = document.createElement('div');
+        categorySection.className = 'settings-category';
+        
+        const categoryTitle = document.createElement('h2');
+        categoryTitle.className = 'category-title';
+        categoryTitle.textContent = category.title;
+        categorySection.appendChild(categoryTitle);
+        
+        category.settings.forEach(setting => {
+            const item = createSettingItem(setting);
+            categorySection.appendChild(item);
+        });
+        
+        settingsSection.appendChild(categorySection);
     });
+
+    // Add version number
+    const version = document.createElement('div');
+    version.className = 'version-info';
+    version.textContent = VERSION;
+    settingsSection.appendChild(version);
 
     // Load saved settings
     chrome.storage.local.get(
-        settings.map(s => s.key),
+        categories.flatMap(cat => cat.settings).map(s => s.key),
         (data) => {
-            settings.forEach(setting => {
-                const checkbox = document.getElementById(setting.id);
-                if (checkbox) {
-                    checkbox.checked = data[setting.key] ?? true; // Default to enabled
-                }
+            categories.forEach(category => {
+                category.settings.forEach(setting => {
+                    const toggle = document.getElementById(setting.id);
+                    if (toggle) {
+                        toggle.checked = data[setting.key] ?? true; // Default to enabled
+                    }
+                });
             });
         }
     );
 
     // Save settings
-    settings.forEach(setting => {
-        const checkbox = document.getElementById(setting.id);
-        if (checkbox) {
-            checkbox.addEventListener('change', (e) => {
-                chrome.storage.local.set({ [setting.key]: e.target.checked });
-                showToast(`${setting.title} ${e.target.checked ? 'enabled' : 'disabled'}`);
-            });
-        }
+    categories.forEach(category => {
+        category.settings.forEach(setting => {
+            const toggle = document.getElementById(setting.id);
+            if (toggle) {
+                toggle.addEventListener('change', (e) => {
+                    chrome.storage.local.set({ [setting.key]: e.target.checked });
+                    showToast(`${setting.title} ${e.target.checked ? 'enabled' : 'disabled'}`);
+                });
+            }
+        });
     });
 });
 
