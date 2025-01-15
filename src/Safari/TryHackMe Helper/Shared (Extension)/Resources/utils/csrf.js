@@ -1,6 +1,7 @@
 /**
  * CSRF Token Management Module
  * Handles fetching, caching, and management of CSRF tokens for API requests
+ * Safari-compatible implementation
  * 
  * Features:
  * - Token caching to minimize API calls

@@ -1,6 +1,7 @@
 /**
  * API Utilities Module
  * Provides centralized API request handling with CSRF protection and error management
+ * Safari-compatible implementation
  * 
  * Features:
  * - Automatic CSRF token inclusion

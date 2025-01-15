@@ -349,7 +349,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Clean up interval when popup closes
     window.addEventListener('unload', () => {
         clearInterval(autoRefreshInterval);
-    });
+     });
 });
 
   
