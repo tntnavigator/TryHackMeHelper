@@ -1,105 +1,166 @@
 // Feature: Answer Validation
 console.log("TRYHACKME HELPER >>>>  Content script loaded on:", window.location.href);
 
+// Global validation verbosity setting
+let validationVerbosity = 'simple';
+
+// Function to toggle validation verbosity
+function toggleValidationVerbosity() {
+  browser.storage.local.get(['VALIDATION_VERBOSITY']).then(result => {
+    const newMode = result.VALIDATION_VERBOSITY === 'detailed' ? 'simple' : 'detailed';
+    browser.storage.local.set({ VALIDATION_VERBOSITY: newMode }).then(() => {
+      validationVerbosity = newMode;
+      // Trigger validation on all answer fields to update display
+      document.querySelectorAll("input[data-testid='answer-field']").forEach(field => {
+        field.dispatchEvent(new Event('input'));
+      });
+    });
+  });
+}
+
 function enableAnswerValidation() {
   console.log("TRYHACKME HELPER >>>> enable Answer Validation loaded on:", window.location.href);
 
-   // Select all inputs with `data-testid="answer-field"`
-document.querySelectorAll("input[data-testid='answer-field']").forEach((inputField) => {
-  // Get the placeholder pattern after "Answer format: "
-  const placeholderText = inputField.getAttribute("placeholder");
-  const format = placeholderText.replace("Answer format: ", "").trim(); // Extract the format pattern
-  
-  // Create a div to show the status message below the input field
-  const statusDiv = document.createElement("div");
-  statusDiv.style.fontFamily = getComputedStyle(inputField).fontFamily;
-  statusDiv.style.fontSize = getComputedStyle(inputField).fontSize;
-  statusDiv.style.marginTop = "5px";
-  statusDiv.style.display = "none"; // Initially hidden
-  
-  // Append the status div after the input field in its parent div
-  inputField.parentNode.insertBefore(statusDiv, inputField.nextSibling);
-  
-  // Add event listener for input events
-  inputField.addEventListener("input", function () {
+  // Get initial validation verbosity setting
+  browser.storage.local.get(['VALIDATION_VERBOSITY']).then(result => {
+    validationVerbosity = result.VALIDATION_VERBOSITY || 'simple';
+  });
+
+  document.querySelectorAll("input[data-testid='answer-field']").forEach((inputField) => {
+    const placeholderText = inputField.getAttribute("placeholder");
+    const format = placeholderText.replace("Answer format: ", "").trim();
+    
+    const statusDiv = document.createElement("div");
+    statusDiv.style.fontFamily = getComputedStyle(inputField).fontFamily;
+    statusDiv.style.fontSize = getComputedStyle(inputField).fontSize;
+    statusDiv.style.marginTop = "5px";
+    statusDiv.style.display = "none";
+    statusDiv.style.cursor = "pointer";
+    statusDiv.onclick = toggleValidationVerbosity;
+    
+    inputField.parentNode.insertBefore(statusDiv, inputField.nextSibling);
+
+    function isValidWildcardChar(char) {
+      const invalidChars = [' ', ',', '.', '{', '}', '[', ']', '(', ')', '*'];
+      return !invalidChars.includes(char);
+    }
+    
+    inputField.addEventListener("input", function () {
       const userInput = inputField.value;
       let hasError = false;
-      let isMatched = userInput.length === format.length;
-      let errorText = "<span style='color: red;'><strong>Error:</strong></span> ";
+      let errorMessage = "";
       let formattedText = "";
 
-      // Check each character in userInput against the format pattern
-      for (let i = 0; i < format.length; i++) {
+      if (userInput.length > format.length) {
+        hasError = true;
+        errorMessage = validationVerbosity === 'detailed' 
+          ? `Too many characters (expected ${format.length}, got ${userInput.length}). `
+          : 'Error: ';
+        
+        for (let i = 0; i < userInput.length; i++) {
+          const char = userInput[i];
+          if (i < format.length && char === format[i]) {
+            formattedText += `<span style="color: blue;">${char}</span>`;
+          } else if (i < format.length) {
+            formattedText += `<span style="color: red;">${char}</span>`;
+          } else {
+            formattedText += `<span style="color: red; text-decoration: line-through;">${char}</span>`;
+          }
+        }
+      } else {
+        for (let i = 0; i < format.length; i++) {
           const formatChar = format[i];
           const inputChar = userInput[i];
 
           if (i < userInput.length) {
-              if (formatChar === "*") {
-                  // Wildcard character: any input is allowed
-                  formattedText += `<span style="color: blue;">${inputChar}</span>`;
-              } else if (formatChar === inputChar) {
-                  // Exact character match
-                  formattedText += `<span style="color: blue;">${inputChar}</span>`;
+            if (formatChar === '*') {
+              if (!isValidWildcardChar(inputChar)) {
+                hasError = true;
+                if (inputChar === ' ') {
+                  errorMessage = validationVerbosity === 'detailed'
+                    ? "Spaces are not allowed in wildcard (*) positions. "
+                    : "Error: ";
+                  formattedText += `<span style="color: red; text-decoration: underline;">&nbsp;</span>`;
+                } else {
+                  errorMessage = validationVerbosity === 'detailed'
+                    ? `Character '${inputChar}' is not allowed in wildcard (*) positions. `
+                    : "Error: ";
+                  formattedText += `<span style="color: red; text-decoration: underline;">${inputChar}</span>`;
+                }
               } else {
-                  // Mismatch: highlight in red
-                  formattedText += `<span style="color: red;">${inputChar}</span>`;
-                  hasError = true;
+                formattedText += `<span style="color: blue;">${inputChar}</span>`;
               }
+            } else if (formatChar === inputChar) {
+              formattedText += `<span style="color: blue;">${inputChar}</span>`;
+            } else {
+              hasError = true;
+              if (inputChar === ' ') {
+                errorMessage = validationVerbosity === 'detailed'
+                  ? `Expected '${formatChar}', got space. `
+                  : "Error: ";
+                formattedText += `<span style="color: red; text-decoration: underline;">&nbsp;</span>`;
+              } else {
+                errorMessage = validationVerbosity === 'detailed'
+                  ? `Expected '${formatChar}', got '${inputChar}'. `
+                  : "Error: ";
+                formattedText += `<span style="color: red;">${inputChar}</span>`;
+              }
+            }
           } else {
-              // Remaining pattern characters in blue
-              formattedText += `<span style="color: blue;">${formatChar}</span>`;
+            formattedText += `<span style="color: #666;">${formatChar}</span>`;
           }
+        }
       }
 
-      // Update status message
       if (hasError) {
-          statusDiv.innerHTML = errorText + formattedText;
-          statusDiv.style.display = "block";
-      } else if (isMatched) {
-          statusDiv.innerHTML = "<strong>Matched</strong>";
-          statusDiv.style.color = "green";
-          statusDiv.style.display = "block";
+        statusDiv.innerHTML = `<span style='color: red;'><strong>${errorMessage}</strong></span>${formattedText}`;
+        statusDiv.style.display = "block";
+      } else if (userInput.length === format.length) {
+        statusDiv.innerHTML = `<strong style='color: green;'>${validationVerbosity === 'detailed' ? '✓ Format matches' : 'Match: '}</strong>${formattedText}`;
+        statusDiv.style.display = "block";
+      } else if (userInput.length > 0) {
+        const remaining = format.length - userInput.length;
+        const message = validationVerbosity === 'detailed'
+          ? `Need ${remaining} more character${remaining !== 1 ? 's' : ''}`
+          : 'Partial: ';
+        statusDiv.innerHTML = `<strong style='color: orange;'>${message}</strong>${formattedText}`;
+        statusDiv.style.display = "block";
       } else {
-          // Partial match with remaining pattern shown in blue
-          statusDiv.innerHTML = "<strong>Partial:</strong> " + formattedText;
-          statusDiv.style.color = "orange";
-          statusDiv.style.display = "block";
+        statusDiv.style.display = "none";
       }
+    });
   });
-});
+}
 
-  }
-  
-  // Feature: Add Target Machine Info
-  function enableMachineInfoDuplication() {
-    console.log("TRYHACKME HELPER >>>> enableMachineInfoDuplication loaded on:", window.location.href);
+// Feature: Add Target Machine Info
+function enableMachineInfoDuplication() {
+  console.log("TRYHACKME HELPER >>>> enableMachineInfoDuplication loaded on:", window.location.href);
   // Select the parent container
-const roomContent = document.getElementById("room_content");
+  const roomContent = document.getElementById("room_content");
 
-// Select the two specific divs to be copied
-const targetMachineTitle = document.querySelector('[data-sentry-element="StyledSectionTitle"]');
-const activeMachineInfo = document.getElementById("active-machine-info");
+  // Select the two specific divs to be copied
+  const targetMachineTitle = document.querySelector('[data-sentry-element="StyledSectionTitle"]');
+  const activeMachineInfo = document.getElementById("active-machine-info");
 
-// Clone the elements
-const targetMachineTitleClone = targetMachineTitle.cloneNode(true);
-const activeMachineInfoClone = activeMachineInfo.cloneNode(true);
+  // Clone the elements
+  const targetMachineTitleClone = targetMachineTitle.cloneNode(true);
+  const activeMachineInfoClone = activeMachineInfo.cloneNode(true);
 
-// Append the cloned elements to the bottom of #room_content
-roomContent.appendChild(targetMachineTitleClone);
-roomContent.appendChild(activeMachineInfoClone);
+  // Append the cloned elements to the bottom of #room_content
+  roomContent.appendChild(targetMachineTitleClone);
+  roomContent.appendChild(activeMachineInfoClone);
 
-// Find buttons in the cloned activeMachineInfo and link them to original buttons
-const originalButtons = activeMachineInfo.querySelectorAll("button");
-const clonedButtons = activeMachineInfoClone.querySelectorAll("button");
+  // Find buttons in the cloned activeMachineInfo and link them to original buttons
+  const originalButtons = activeMachineInfo.querySelectorAll("button");
+  const clonedButtons = activeMachineInfoClone.querySelectorAll("button");
 
-// Link each cloned button to its corresponding original button
-clonedButtons.forEach((button, index) => {
+  // Link each cloned button to its corresponding original button
+  clonedButtons.forEach((button, index) => {
     button.onclick = () => {
-        originalButtons[index].click(); // Trigger the original button click
+      originalButtons[index].click(); // Trigger the original button click
     };
-});
-
-  }
+  });
+}
 
 // Feature: Command Copy Functionality
 function enableCommandCopy() {
